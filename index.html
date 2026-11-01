@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>동물보건복지학과 안내 챗봇</title>
+  <meta name="description" content="호서대학교 동물보건복지학과 입학·커리큘럼·장학금·기숙사·진로를 안내하는 챗봇">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f8f7;
+      --surface: #ffffff;
+      --text: #1d2a26;
+      --muted: #5c6b66;
+      --line: #e1e7e4;
+      --brand: #1f6f5c;
+      --brand-soft: #e5f2ee;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Noto Sans KR", system-ui, sans-serif;
+      line-height: 1.6;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+    header { padding: 56px 0 32px; }
+    .eyebrow { color: var(--brand); font-weight: 700; font-size: 14px; letter-spacing: .02em; }
+    h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.3; margin: 8px 0 12px; }
+    .lead { color: var(--muted); font-size: 17px; margin: 0 0 24px; max-width: 620px; }
+    .start {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--brand); color: #fff; border: 0; border-radius: 999px;
+      padding: 12px 22px; font: inherit; font-weight: 700; cursor: pointer;
+    }
+    .start:hover { filter: brightness(1.08); }
+    h2 { font-size: 20px; margin: 40px 0 6px; }
+    .sub { color: var(--muted); margin: 0 0 16px; font-size: 15px; }
+    .topics {
+      display: grid; gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+      list-style: none; padding: 0; margin: 0;
+    }
+    .topics button {
+      width: 100%; text-align: left; cursor: pointer;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+      padding: 14px 16px; font: inherit; color: var(--text);
+    }
+    .topics button:hover { border-color: var(--brand); background: var(--brand-soft); }
+    .topics strong { display: block; font-size: 15px; }
+    .topics span { color: var(--muted); font-size: 14px; }
+    .qr-box {
+      display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    }
+    #qrcode { width: 148px; height: 148px; }
+    #qrcode img, #qrcode canvas { width: 148px !important; height: 148px !important; }
+    .qr-box p { margin: 0 0 10px; color: var(--muted); font-size: 15px; }
+    .qr-box a { color: var(--brand); font-weight: 700; }
+    footer { color: var(--muted); font-size: 14px; padding: 40px 0 120px; }
+    .toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+      background: var(--text); color: #fff; padding: 10px 16px; border-radius: 10px;
+      font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10;
+    }
+    .toast.show { opacity: 1; }
+    .warn {
+      display: none; background: #fff4e5; border: 1px solid #f0c27a; color: #7a4b00;
+      padding: 12px 16px; border-radius: 10px; margin-top: 16px; font-size: 14px;
+    }
+    df-messenger {
+      --df-messenger-bot-message: #eef3f1;
+      --df-messenger-button-titlebar-color: #1f6f5c;
+      --df-messenger-chat-background-color: #fafafa;
+      --df-messenger-font-color: #1d2a26;
+      --df-messenger-send-icon: #1f6f5c;
+      --df-messenger-user-message: #d6ebe4;
+      --df-messenger-chip-border-color: #1f6f5c;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">호서대학교 동물보건복지학과</div>
+      <h1>궁금한 건 챗봇에게<br>편하게 물어보세요</h1>
+      <p class="lead">입학정보, 커리큘럼, 장학금, 기숙사, 실습, 졸업 후 진로까지. 24시간 언제든 학과 정보를 안내해 드려요.</p>
+      <button class="start" id="openChat" type="button">💬 챗봇과 대화 시작하기</button>
+      <div class="warn" id="setupWarn">⚠️ 아직 챗봇이 연결되지 않았어요. index.html 안의 <b>agent-id</b> 값을 Dialogflow Messenger에서 받은 값으로 바꿔 주세요.</div>
+    </header>
+
+    <section>
+      <h2>이런 걸 물어볼 수 있어요</h2>
+      <p class="sub">질문을 누르면 복사돼요. 채팅창에 붙여 넣거나 편한 말투로 직접 물어보세요.</p>
+      <ul class="topics" id="topics"></ul>
+    </section>
+
+    <section>
+      <h2>휴대폰으로 열기</h2>
+      <div class="qr-box">
+        <div id="qrcode" aria-label="이 페이지 QR코드"></div>
+        <div>
+          <p>QR코드를 찍으면 휴대폰에서 바로 챗봇을 쓸 수 있어요.<br>포스터나 안내 자료에 넣어 활용하세요.</p>
+          <a href="#" id="qrDownload" download="동물보건복지학과_챗봇_QR.png">QR코드 이미지 저장하기</a>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      챗봇 답변은 참고용 안내입니다. 정확한 내용은 학과사무실(041-540-9575)이나 학교 홈페이지에서 확인해 주세요.
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <!-- ▼▼▼ Dialogflow Messenger: agent-id 값만 본인 것으로 바꾸세요 ▼▼▼ -->
+  <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+  <df-messenger
+    intent="WELCOME"
+    chat-title="동물보건복지학과 안내"
+    agent-id="e418e4e7-4b4b-4f6b-82e1-8e09221b44b7"
+    language-code="ko"
+    expand="true"
+  ></df-messenger>
+  <!-- ▲▲▲ 여기까지 ▲▲▲ -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    const TOPICS = [
+      ["학과 소개", "동물보건복지학과는 어떤 학과인가요?"],
+      ["위치 및 주소", "동물보건복지학과는 어디에 있나요?"],
+      ["커리큘럼", "어떤 과목을 배우나요?"],
+      ["입학정보", "입학 등급컷과 경쟁률 알려주세요"],
+      ["교수진", "교수님들 소개해 주세요"],
+      ["학생활동·동아리", "학과 동아리가 궁금해요"],
+      ["실습지", "실습은 어디로 나가나요?"],
+      ["졸업 후 진로", "졸업 후 진로는 어떻게 되나요?"],
+      ["취업 정보", "취업은 잘 되나요?"],
+      ["장학금", "장학금 제도가 궁금해요"],
+      ["자격증", "취득할 수 있는 자격증이 궁금해요"],
+      ["교과 외 활동", "봉사활동이나 대외활동은 뭐가 있나요?"],
+      ["졸업 요건", "졸업하려면 어떻게 해야 하나요?"],
+      ["문의·연락처", "학과 사무실 연락처를 알려주세요"],
+      ["기숙사", "기숙사는 어떻게 신청하나요?"],
+      ["학과 SNS", "학과 인스타그램 알려주세요"],
+      ["동물보건사 시험", "동물보건사 시험은 어떻게 준비하나요?"]
+    ];
+
+    const toast = document.getElementById("toast");
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add("show");
+      clearTimeout(showToast.t);
+      showToast.t = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    const list = document.getElementById("topics");
+    TOPICS.forEach(([title, q]) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.innerHTML = "<strong></strong><span></span>";
+      btn.querySelector("strong").textContent = title;
+      btn.querySelector("span").textContent = q;
+      btn.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(q); showToast("질문을 복사했어요. 채팅창에 붙여 넣어 보세요."); }
+        catch (e) { showToast(q); }
+        openChat();
+      });
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+
+    function openChat() {
+      const m = document.querySelector("df-messenger");
+      if (!m) return;
+      const root = m.shadowRoot;
+      const chat = root && root.querySelector("df-messenger-chat");
+      const opened = chat && chat.shadowRoot && chat.shadowRoot.querySelector(".chat-wrapper.chat-open");
+      if (!opened) {
+        const btn = root && root.querySelector("#widgetIcon");
+        if (btn) btn.click();
+      }
+    }
+    document.getElementById("openChat").addEventListener("click", openChat);
+
+    if (document.querySelector("df-messenger").getAttribute("agent-id").includes("AGENT-ID")) {
+      document.getElementById("setupWarn").style.display = "block";
+    }
+
+    try {
+      const url = location.href.split("#")[0];
+      new QRCode(document.getElementById("qrcode"), { text: url, width: 296, height: 296, correctLevel: QRCode.CorrectLevel.M });
+      setTimeout(() => {
+        const img = document.querySelector("#qrcode img");
+        const canvas = document.querySelector("#qrcode canvas");
+        const link = document.getElementById("qrDownload");
+        link.href = (canvas && canvas.toDataURL("image/png")) || (img && img.src) || "#";
+      }, 300);
+    } catch (e) {
+      document.querySelector(".qr-box").style.display = "none";
+    }
+  </script>
+</body>
+</html>
